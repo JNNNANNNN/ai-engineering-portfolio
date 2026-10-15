@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shipping a Department Dashboard with an AI Pair</title>
+<meta name="description" content="How one person built, deployed and handed over a production internal dashboard in about four weeks by working with an AI coding agent as a daily collaborator.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; the architecture is a three-row band and the action loop a four-step strip. */
+:root{
+  --bg:#f3efe6; --paper:#fffdf8; --ink:#1d1a14; --muted:#6b6459; --line:#d9d2c3;
+  --accent:#8a3b12; --accent-soft:#f1dccb; --pass:#1f6f4a; --pass-soft:#d9eee2; --warn:#8a6d12; --warn-soft:#f3e8c4; --teal:#0f5257; --teal-soft:#d6e7e6;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#17150f; --paper:#201d16; --ink:#efe9dc; --muted:#a69c8a; --line:#3b352a;
+  --accent:#e08b55; --accent-soft:#3a2416; --pass:#6fcf97; --pass-soft:#16301f; --warn:#e1c15a; --warn-soft:#332a10; --teal:#7fc4c4; --teal-soft:#15302f; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#17150f; --paper:#201d16; --ink:#efe9dc; --muted:#a69c8a; --line:#3b352a;
+  --accent:#e08b55; --accent-soft:#3a2416; --pass:#6fcf97; --pass-soft:#16301f; --warn:#e1c15a; --warn-soft:#332a10; --teal:#7fc4c4; --teal-soft:#15302f; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-block:0 64px;padding-inline:clamp(16px,4vw,40px)}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.1rem,5vw,3.6rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-top:72px;margin-bottom:18px}
+h3{font-size:1.15rem;margin-bottom:8px}
+p{margin:0 0 16px;max-width:66ch}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.wrap{max-width:980px;margin-inline:auto}
+header.hero{padding-block:56px 32px;border-bottom:1px solid var(--line)}
+header.hero p.lede{font-size:1.25rem;max-width:58ch;margin-top:20px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:22px;font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.meta span b{color:var(--ink);font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:36px 0 8px}
+.tile{background:var(--paper);border:1px solid var(--line);padding:18px 18px 14px;border-radius:6px}
+.tile .n{font-family:var(--display);font-size:2.2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.86rem;color:var(--muted);margin-top:8px}
+.plain{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px 20px;margin:20px 0;font-size:.95rem}
+.plain p{margin:0 0 8px;max-width:72ch}
+.plain p:last-child{margin:0}
+.arch{display:grid;gap:10px;margin:24px 0 10px}
+.arch .row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:stretch}
+.arch .row .lab{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:14px}
+.arch .boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;min-width:0}
+.arch .box{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:.88rem;min-width:0}
+.arch .box b{display:block;font-weight:600}
+.arch .box small{color:var(--muted);font-family:var(--mono);font-size:.72rem}
+.arch .box.hub{border-color:var(--teal);background:var(--teal-soft)}
+.arch .box.ui{border-color:var(--accent)}
+.arch .down{grid-column:2;text-align:center;color:var(--muted);font-family:var(--mono);font-size:.8rem;line-height:1}
+@media (max-width:640px){.arch .row{grid-template-columns:1fr}.arch .down{grid-column:1}.arch .row .lab{padding-top:0}}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media (max-width:760px){.split{grid-template-columns:1fr}}
+.split>div{min-width:0}
+ul{padding-left:1.2em;margin:0 0 16px}
+li{margin-bottom:8px;max-width:64ch}
+li::marker{color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:.92rem;background:var(--paper)}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 6px 6px 0;margin:20px 0}
+.callout p{margin:0;max-width:70ch}
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
+.loop .s{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0;position:relative}
+.loop .s .k{font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.08em}
+.loop .s h3{font-size:1rem;margin:6px 0}
+.loop .s p{font-size:.88rem;color:var(--muted);margin:0;max-width:none}
+.loop .s+.s::before{content:"";position:absolute;left:-10px;top:50%;width:10px;height:1px;background:var(--line)}
+@media (max-width:760px){.loop{grid-template-columns:1fr}.loop .s+.s::before{display:none}}
+.timeline{display:grid;gap:0;margin:20px 0;border-left:2px solid var(--line);padding-left:18px}
+.timeline .t{padding:8px 0 14px;position:relative}
+.timeline .t::before{content:"";position:absolute;left:-24px;top:16px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.timeline .t b{display:block;font-family:var(--mono);font-size:.76rem;letter-spacing:.06em;color:var(--muted)}
+.timeline .t p{margin:2px 0 0}
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);max-width:70ch}
+@media (prefers-reduced-motion:no-preference){.tile,.arch .box,.loop .s{transition:border-color .2s}.tile:hover,.loop .s:hover{border-color:var(--accent)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Project 2 of 3 · Building software with an AI collaborator</div>
+  <h1>Shipping a Department Dashboard with an AI Pair</h1>
+  <p class="lede">A 40-person engineering department had its work scattered across five company systems. In about four weeks, working as a team of one plus an AI coding agent, I took a dashboard from a first sketch to a production deployment that people use daily and that writes their actions back into the systems of record.</p>
+  <div class="meta">
+    <span>My role <b>requirements, design, build, deployment, hand-over</b></span>
+    <span>Period <b>Sep 2026</b></span>
+    <span>AI used <b>Claude Code as a daily pair, with persistent project notes</b></span>
+  </div>
+</header>
+
+<section>
+  <div class="tiles">
+    <div class="tile"><div class="n">5</div><div class="l">company systems unified on one page: project tracking, weekly reports, meeting minutes, quality tracking, staff directory</div></div>
+    <div class="tile"><div class="n">1 → 2</div><div class="l">deployments: a trial on a local server, then a container on the company cloud platform</div></div>
+    <div class="tile"><div class="n">2</div><div class="l">write-back paths, so the page is a place to act, not only to look</div></div>
+    <div class="tile"><div class="n">1 afternoon</div><div class="l">from a blank file to a clickable prototype the department could react to</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>The problem, in plain terms</h2>
+  <div class="plain">
+    <p>To answer “what do I owe this week and what did we agree in the last meeting?”, an engineer had to log into four or five separate systems, each with its own vocabulary and none of them showing a view for one person or one department.</p>
+    <p>Management also set a bar for any internal AI or dashboard project: it must not be a read-only mirror. People have to be able to act from it, and the action must flow back to the original system so the next refresh reflects it. That one sentence shaped the whole design.</p>
+  </div>
+</section>
+
+<section>
+  <h2>How the AI and I split the work</h2>
+  <p>The agent wrote most of the code. I spent my time on the things that decide whether an internal tool survives: understanding the data, measuring the real systems, deciding what to trust, and talking to the people who would use it.</p>
+  <div class="split">
+    <div>
+      <h3>What I did</h3>
+      <ul>
+        <li>Interviewed users and reverse-engineered the data model from screenshots of the source system.</li>
+        <li>Wrote a plain-language question list for the IT team about which APIs existed and what they returned.</li>
+        <li>Made the four decisions that framed everything: what counts as “our work”, which two views matter most, who may upload, and that all data access goes through one adapter layer.</li>
+        <li>Measured every API’s real latency and reliability before designing around it.</li>
+        <li>Reviewed every screen with real input, not simulated clicks, after one bug slipped through automated checks.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What the agent did</h3>
+      <ul>
+        <li>Built the single-file prototype with a mock data layer in one session, so users saw real screens before any integration existed.</li>
+        <li>Swapped the mock for the real gateway without touching the UI, because the adapter boundary was agreed up front.</li>
+        <li>Wrote the background jobs, the identity layer, the write-back proxies, the container build and the deployment scripts.</li>
+        <li>Kept a running set of project notes: decisions, measured numbers, dead ends and the reasons behind them, so each new session started with context instead of re-discovery.</li>
+        <li>Produced the hand-over documents and even the prompt a future AI can use to rebuild the deployment package.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What was built</h2>
+  <p>The site stores no business data of its own. A small service pulls snapshots from the company’s API gateway on a schedule, serves them after checking who is asking, and forwards two kinds of edits using that person’s own identity.</p>
+  <div class="arch">
+    <div class="row"><div class="lab">Sources</div><div class="boxes">
+      <div class="box"><b>Project tracking</b><small>deliverables · stages · members</small></div>
+      <div class="box"><b>Weekly reports</b><small>time per project</small></div>
+      <div class="box"><b>Meeting minutes</b><small>action items</small></div>
+      <div class="box"><b>Quality tracking</b><small>four systems</small></div>
+      <div class="box"><b>Staff directory</b><small>identity · department</small></div>
+    </div></div>
+    <div class="down">↓ company API gateway</div>
+    <div class="row"><div class="lab">Service</div><div class="boxes">
+      <div class="box hub"><b>Scheduled pulls</b><small>every 15 min · nightly · on first login</small></div>
+      <div class="box hub"><b>Snapshot cache</b><small>integrity-guarded</small></div>
+      <div class="box hub"><b>Identity</b><small>personal key → who-am-i → signed cookie</small></div>
+      <div class="box hub"><b>Write-back</b><small>under the user’s own identity</small></div>
+    </div></div>
+    <div class="down">↓</div>
+    <div class="row"><div class="lab">Page</div><div class="boxes">
+      <div class="box ui"><b>Home</b><small>department view</small></div>
+      <div class="box ui"><b>My to-do</b><small>per person</small></div>
+      <div class="box ui"><b>Meetings</b><small>import · edit · send back</small></div>
+      <div class="box ui"><b>Projects</b><small>stage tracks</small></div>
+      <div class="box ui"><b>Quality</b><small>open first</small></div>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>The action loop</h2>
+  <p>This is what turned a report into a tool, and what satisfied the “not just a mirror” requirement.</p>
+  <div class="loop">
+    <div class="s"><div class="k">SEE</div><h3>What I owe</h3><p>My to-do lists the deliverables assigned to me, with due dates and a workload indicator.</p></div>
+    <div class="s"><div class="k">ACT</div><h3>Edit in place</h3><p>Change a due date, attach a file, close an item, or import the meeting’s action list, edit it and confirm.</p></div>
+    <div class="s"><div class="k">WRITE BACK</div><h3>System of record</h3><p>The change goes to the original system under my identity, after a two-step confirmation.</p></div>
+    <div class="s"><div class="k">REFLECT</div><h3>Next refresh</h3><p>The item leaves my list on the next snapshot; until then it shows as “awaiting sync”.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Lessons that only showed up in production</h2>
+  <div class="split">
+    <div>
+      <h3>Measure before you design</h3>
+      <p>One API returned everything in about a second. The one holding the data we actually needed took 20–45 seconds per project and sometimes returned a hollow “success”. Instead of fighting it, the slow calls moved to a nightly job that validates each record before it is allowed into the cache. The page loads in milliseconds.</p>
+      <h3>Refresh at the source’s real speed</h3>
+      <p>The upstream data was itself only refreshed every 30 minutes. A “live” button would have cost three minutes and shown the same data. So the board refreshes every 15 minutes, shows its snapshot time, and marks edits as pending until they appear.</p>
+    </div>
+    <div>
+      <h3>Never overwrite good data with bad</h3>
+      <p>Twice an upstream error produced a valid-looking but empty result, and the page cheerfully showed “nobody has anything to do”. Every job now refuses to write if the count is zero or drops by more than half, and each data section keeps its last good version, with a reason, if its own fetch fails.</p>
+      <h3>Do not probe a live system with writes</h3>
+      <p>While exploring an API, the agent sent a test request with deliberately bad parameters to see what the validation did. The system did no validation and wrote the bad record. That became a standing rule in the project notes: read-only probes only, and the rule is now part of how I brief any agent on a production system.</p>
+    </div>
+  </div>
+  <div class="callout"><p><strong>Identity was the hardest design decision.</strong> Both write-capable systems record “who did this” from the key used. One shared key would have credited every edit to one person. The answer was for each user to paste their own personal key once, which the service verifies and never stores, and to use only that key for that person’s edits.</p></div>
+</section>
+
+<section>
+  <h2>Timeline</h2>
+  <div class="timeline">
+    <div class="t"><b>WEEK 1</b><p>Requirements, data model from screenshots, four framing decisions, clickable prototype with mock data.</p></div>
+    <div class="t"><b>WEEK 2</b><p>Identity layer working against the real directory. First read API connected; the mock swapped out with no UI changes. Discovered the two missing APIs and wrote the request to IT.</p></div>
+    <div class="t"><b>WEEK 3</b><p>IT delivered the write API and member data. Personalised to-do, write-back path, and the nightly warm-up strategy after measuring latencies. Trial deployment on a local server.</p></div>
+    <div class="t"><b>WEEK 4</b><p>Second version: meeting-minutes import and write-back, quality tracking, per-project tabs, department-level scoping. Container deployment on the company platform, hand-over package written.</p></div>
+    <div class="t"><b>AFTER</b><p>Adopted by the department. Management followed up by commissioning a second dashboard with personal and weekly views.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>How I work with the agent</h2>
+  <ul>
+    <li><strong>Decisions live in notes, not in chat.</strong> Every measured number, every “we tried this and it failed”, every user preference is written to a persistent project note the agent reads at the start of each session. Four weeks of work never had to be re-explained.</li>
+    <li><strong>Prototype before integration.</strong> A mock data layer let users react to real screens in day one and let the agent build the UI without waiting on IT.</li>
+    <li><strong>Boundaries first, code second.</strong> The adapter rule (UI never calls an API directly) was set before any code existed. It is why the integration later took hours, not days.</li>
+    <li><strong>Verify with real input.</strong> Automated clicks missed a focus bug that a human found in seconds. Now every screen gets a human pass.</li>
+    <li><strong>Hand-over is part of the build.</strong> Each program file begins with the reason it exists, and the hand-over document is written for the next maintainer, human or AI.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Limits worth stating</h2>
+  <ul>
+    <li>Freshness is bounded by the upstream 30-minute refresh; the page says so rather than hiding it.</li>
+    <li>One write path has no delete; a wrong submission must be corrected in the source system.</li>
+    <li>Workload figures only cover the sub-team that reports time allocation; others show “not reported”, not a guess.</li>
+  </ul>
+</section>
+
+<footer>Prepared as a portfolio summary for a general audience. Company, system and project identifiers, internal addresses and colleague names have been removed.</footer>
+
+</div>
+</body>
+</html>

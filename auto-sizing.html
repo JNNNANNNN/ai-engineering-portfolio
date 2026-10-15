@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Letting an AI Agent Do Real Engineering</title>
+<meta name="description" content="What happened when an AI coding agent was given a broken chip circuit, the real simulation tools, and one rule: write down every decision.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow reading column; the agent's loop and the results grid are the only wide bands. */
+:root{
+  --bg:#f3efe6; --paper:#fffdf8; --ink:#1d1a14; --muted:#6b6459; --line:#d9d2c3;
+  --accent:#8a3b12; --accent-soft:#f1dccb; --pass:#1f6f4a; --pass-soft:#d9eee2; --warn:#8a6d12; --warn-soft:#f3e8c4;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#17150f; --paper:#201d16; --ink:#efe9dc; --muted:#a69c8a; --line:#3b352a;
+  --accent:#e08b55; --accent-soft:#3a2416; --pass:#6fcf97; --pass-soft:#16301f; --warn:#e1c15a; --warn-soft:#332a10; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#17150f; --paper:#201d16; --ink:#efe9dc; --muted:#a69c8a; --line:#3b352a;
+  --accent:#e08b55; --accent-soft:#3a2416; --pass:#6fcf97; --pass-soft:#16301f; --warn:#e1c15a; --warn-soft:#332a10; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-block:0 64px;padding-inline:clamp(16px,4vw,40px)}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.1rem,5vw,3.6rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-top:72px;margin-bottom:18px}
+h3{font-size:1.15rem;margin-bottom:8px}
+p{margin:0 0 16px;max-width:66ch}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.wrap{max-width:980px;margin-inline:auto}
+header.hero{padding-block:56px 32px;border-bottom:1px solid var(--line)}
+header.hero p.lede{font-size:1.25rem;max-width:58ch;margin-top:20px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:22px;font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.meta span b{color:var(--ink);font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:36px 0 8px}
+.tile{background:var(--paper);border:1px solid var(--line);padding:18px 18px 14px;border-radius:6px}
+.tile .n{font-family:var(--display);font-size:2.2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.86rem;color:var(--muted);margin-top:8px}
+.plain{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px 20px;margin:20px 0;font-size:.95rem}
+.plain p{margin:0 0 8px;max-width:72ch}
+.plain p:last-child{margin:0}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0 10px}
+.flow .step{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px 14px 12px;min-width:0;position:relative}
+.flow .step .k{font-family:var(--mono);font-size:.74rem;color:var(--accent);letter-spacing:.08em}
+.flow .step h3{font-size:1rem;margin:6px 0 6px}
+.flow .step p{font-size:.88rem;margin:0;color:var(--muted);max-width:none}
+.flow .step+.step::before{content:"";position:absolute;left:-10px;top:50%;width:10px;height:1px;background:var(--line)}
+@media (max-width:760px){.flow{grid-template-columns:1fr}.flow .step+.step::before{display:none}}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media (max-width:760px){.split{grid-template-columns:1fr}}
+.split>div{min-width:0}
+ul{padding-left:1.2em;margin:0 0 16px}
+li{margin-bottom:8px;max-width:64ch}
+li::marker{color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:.92rem;background:var(--paper)}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+.pill.pass{background:var(--pass-soft);color:var(--pass)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 6px 6px 0;margin:20px 0}
+.callout p{margin:0;max-width:70ch}
+.bars{display:grid;gap:10px;margin:18px 0 6px}
+.bar{display:grid;grid-template-columns:190px 1fr 120px;gap:12px;align-items:center;font-size:.9rem}
+.bar .track{height:14px;background:var(--line);border-radius:3px;overflow:hidden;position:relative}
+.bar .from{position:absolute;left:0;top:0;bottom:0;background:var(--warn);opacity:.55}
+.bar .to{position:absolute;left:0;top:0;bottom:0;background:var(--pass)}
+.bar .v{font-family:var(--mono);font-size:.8rem;font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+@media (max-width:600px){.bar{grid-template-columns:1fr;gap:4px}.bar .v{text-align:left}}
+.legend{font-size:.82rem;color:var(--muted);font-family:var(--mono)}
+.legend i{display:inline-block;width:12px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);max-width:70ch}
+@media (prefers-reduced-motion:no-preference){.tile,.flow .step{transition:border-color .2s}.tile:hover,.flow .step:hover{border-color:var(--accent)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Project 1 of 3 · AI agents doing expert work</div>
+  <h1>Letting an AI Agent Do Real Engineering</h1>
+  <p class="lede">I gave an AI coding agent a deliberately broken chip circuit, access to the professional simulation tools, and one rule: write down every decision. Then I ran it 21 times to find out which parts of an expert’s job an AI can own, which parts it can assist with, and which parts still need a person.</p>
+  <div class="meta">
+    <span>My role <b>designed the method, ran every case, wrote the evaluation</b></span>
+    <span>Period <b>Aug – Sep 2026</b></span>
+    <span>AI used <b>Claude Code with two different Claude models</b></span>
+  </div>
+</header>
+
+<section>
+  <div class="tiles">
+    <div class="tile"><div class="n">21</div><div class="l">full runs archived, each with the agent’s complete decision diary</div></div>
+    <div class="tile"><div class="n">8 of 9</div><div class="l">benchmark runs where the agent repaired the circuit to pass all 48 tests</div></div>
+    <div class="tile"><div class="n">0 → 48</div><div class="l">tests passed on a circuit that did not work at all, after 7 rounds of reasoning</div></div>
+    <div class="tile"><div class="n">2</div><div class="l">different AI models, working separately, found the same root cause</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>The task, in plain terms</h2>
+  <div class="plain">
+    <p>Inside a chip there are circuits made of transistors. Each transistor has a couple of dimensions you can change, like adjusting the knobs on a mixing desk. A circuit is only “done” when it passes a fixed set of tests under hot, cold, fast and slow manufacturing conditions. Here that was 48 tests.</p>
+    <p>Normally a senior engineer looks at the test results, decides which knob to turn, re-runs the simulation (which takes minutes to hours), and repeats. It is skilled, repetitive and slow. The question was whether an AI agent could run that loop itself, and how we would know whether to trust it.</p>
+  </div>
+</section>
+
+<section>
+  <h2>How I set it up</h2>
+  <p>I did not want a demo where the AI gets a clean problem and a scripted answer. The agent used the same software the engineers use, on the same shared compute cluster, with real queue waits. What I added was a working method around it.</p>
+  <div class="flow">
+    <div class="step"><div class="k">1 · BRIEF</div><h3>Register the case</h3><p>What circuit, what tests, where the starting point is, two safety checks before anything runs.</p></div>
+    <div class="step"><div class="k">2 · LOOP</div><h3>The agent works alone</h3><p>Run simulations → read results → pick the next change → run again. No human in the loop during this phase.</p></div>
+    <div class="step"><div class="k">3 · DIARY</div><h3>Tag every decision</h3><p>Each meaningful choice is logged under one of six question types, including who should ideally own that choice.</p></div>
+    <div class="step"><div class="k">4 · REPORT</div><h3>Structured write-up</h3><p>Fixed template so cases can be compared, plus a full appendix of every round, including the wrong turns.</p></div>
+  </div>
+  <div class="callout"><p><strong>One rule above all others: the agent may never touch the original design.</strong> It works on a copy in a sandbox. I added this after an early scare when unexpected files appeared next to the real design. It turned out to be unrelated, but the rule stayed, and it is the first thing the method checks.</p></div>
+</section>
+
+<section>
+  <h2>The benchmark: break it six ways, see what the AI does</h2>
+  <p>To test the agent against a known answer, I took one working circuit and sabotaged it six different ways, from a single wrong dimension to a change that killed the circuit completely. Two AI models each got the broken versions with no hint of what was wrong.</p>
+
+  <div class="bars">
+    <div class="bar"><span>1 · subtle shift in two parts</span><div class="track"><div class="from" style="width:56%"></div><div class="to" style="width:100%"></div></div><span class="v">27 → 48 / 48</span></div>
+    <div class="bar"><span>2 · one part below legal size</span><div class="track"><div class="from" style="width:90%"></div><div class="to" style="width:100%"></div></div><span class="v">43 → 48 / 48</span></div>
+    <div class="bar"><span>3 · circuit completely dead</span><div class="track"><div class="from" style="width:0%"></div><div class="to" style="width:100%"></div></div><span class="v">0 → 48 / 48</span></div>
+    <div class="bar"><span>4 · one reference part too small</span><div class="track"><div class="from" style="width:67%"></div><div class="to" style="width:100%"></div></div><span class="v">32 → 48 / 48</span></div>
+    <div class="bar"><span>5 · a chain of resistors too short</span><div class="track"><div class="from" style="width:85%"></div><div class="to" style="width:100%"></div></div><span class="v">41 → 48 / 48</span></div>
+    <div class="bar"><span>6 · a structural weakness</span><div class="track"><div class="from" style="width:65%"></div><div class="to" style="width:65%"></div></div><span class="v">31 → 31 (gave up, with proof)</span></div>
+  </div>
+  <div class="legend"><i style="background:var(--warn);opacity:.55"></i>tests passing before &nbsp; <i style="background:var(--pass)"></i>after the agent’s repair</div>
+
+  <div class="tablewrap" style="margin-top:24px">
+  <table>
+    <thead><tr><th>Case</th><th>Model</th><th>What the agent did</th><th>Cost</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A</td><td>Screened 21 candidate changes, noticed they all moved the same thing, then found the one knob that moved only the failing test</td><td class="num">507 simulations · ~30 min</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>1</td><td>B</td><td>Fixed it with a single change, after discovering that its own measurement script had a bug and correcting itself</td><td class="num">1 change</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>2</td><td>A</td><td>Noticed the sabotage was also a rule violation, fixed that first, then made four small adjustments</td><td class="num">1020 simulations</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>2</td><td>B</td><td>One change; passed, but with the thinnest safety margin of any run</td><td class="num">1 change</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>3</td><td>A</td><td>Scanned the structure, spotted a 42,000-to-1 imbalance, and its very first full candidate passed</td><td class="num">430 simulations · 7 rounds</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>3</td><td>B</td><td>First proved that “making it legal” was not enough, then scaled the same parts up until it worked</td><td class="num">13 probes</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>4</td><td>B</td><td>Its first theory was wrong; it added a measurement point, saw the real cause, fixed one dimension</td><td class="num">~55 min</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>5</td><td>B</td><td>Ruled out an unrelated branch with two negative results, then homed in by bisection in four simulations</td><td class="num">~52 min</td><td><span class="pill pass">pass</span></td></tr>
+      <tr><td>6</td><td>B</td><td>Tried four independent knobs; every one that fixed the failing test broke another 2.6–3.7× faster. Reported it as a design limit, listed what it had not tried</td><td class="num">12 rounds · ~2 h</td><td><span class="pill warn">stopped</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>What I learned about working with an agent</h2>
+  <div class="split">
+    <div>
+      <h3>Make it keep a diary, not just an answer</h3>
+      <p>The first report I received only stated the final fix. I changed the template so every run must include each round: what it tried, why, what it saw, what it concluded. The reversed theories and failed attempts turned out to be the most valuable part, because they are exactly what a future engineer or a future AI needs to avoid repeating.</p>
+      <h3>Two independent agents agreeing is a real signal</h3>
+      <p>On the dead circuit, both models started from nothing and landed on the same three parts and the same mechanism. The numbers differed slightly because their search paths differed. That is a cheap cross-check I now use on purpose.</p>
+    </div>
+    <div>
+      <h3>“I could not do it” has to come with evidence</h3>
+      <p>The one failure was the most instructive run. The agent did not quietly stop; it measured four different approaches, showed they all traded one problem for another at a fixed ratio, and then wrote down which ideas remained untested. A person can pick that up immediately.</p>
+      <h3>The agent does not get to sign off</h3>
+      <p>Several “passing” results had safety margins of only a few millivolts. Every report flags this and recommends a further statistical check before anyone accepts the change. Writing the fix back into the real design is a separate, human-approved step by design.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The real deliverable: who should own which decision</h2>
+  <p>The project was commissioned to answer a management question, not to fix circuits: when an AI agent is embedded in this workflow, what should be automated outright, what should the agent decide, and where must a human stay? After tagging every decision across 21 cases, a stable pattern emerged.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Owner</th><th>Kind of work</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Plain automation</strong></td><td>Preparing files, applying standard settings, recomputing dependent values, consistency checks</td><td>Deterministic and already correct in existing code. I extracted these into a small library so the agent calls them instead of re-deriving them.</td></tr>
+      <tr><td><strong>The AI agent</strong></td><td>Reading results, forming a theory of what is wrong, choosing what to try next, recognising when it is stuck</td><td>Needs judgement over messy evidence, and the agent showed it could do this, including correcting its own mistakes.</td></tr>
+      <tr><td><strong>A human expert</strong></td><td>Supplying knowledge that cannot be inferred from data, accepting a thin margin, deciding whether a stall is worth more effort, final approval</td><td>These are accountability decisions, not search problems.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>What I built and handed over</h2>
+  <ul>
+    <li><strong>A reusable agent “skill”</strong>: one folder that encodes the four-phase method, the diary format, the report template and the sandbox rule. Drop it into a new project and the agent runs cases the same way.</li>
+    <li><strong>A small helper library</strong> for the mechanical steps, carved out of an older in-house tool after reading its source and keeping only the parts with no hidden dependencies.</li>
+    <li><strong>An archive of 21 runs</strong> with diaries, reports and results, under version control.</li>
+    <li><strong>Comparison reports</strong> across the six sabotage cases and the two models, written for the team building the company’s wider AI design platform.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Limits worth stating</h2>
+  <ul>
+    <li>One circuit type was tested thoroughly; others were run but not to the same depth.</li>
+    <li>Most of the wall-clock time was simulation queueing on a shared cluster, not the AI thinking.</li>
+    <li>The agent proposes; a person still applies. That is deliberate, not a gap.</li>
+  </ul>
+</section>
+
+<footer>Prepared as a portfolio summary for a general audience. Company, product and colleague identifiers have been removed; all numbers come from the archived run reports.</footer>
+
+</div>
+</body>
+</html>
